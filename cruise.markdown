@@ -1,10 +1,3 @@
-Today's pathological language is a bit of a treat for me. I'm going to show you a twisted,
-annoying, and thoroughly pointless language that *I* created. 
-
-The language is based on a model of computation called [Actors](http://en.wikipedia.org/wiki/Actor_model), which was originally proposed by Professor Gul Agha of UIUC. There've been some really nice languages built using ideas from Actors, but this is *not* one of them. And that's exactly where the name comes from. What name comes to mind when you think of *really bad* actors with delusions of adequacy? For me, it's "Cruise".
-
-You can get the code for Cruise on Google code, project "Cruise", or you can grab a bundle containing the code, and a compiled binary in a jarfile [here](). To run it, just "java -jar Cruise.jar cruse-program-file".
-
 Quick overview of the actor model
 -------------------------------------
 
