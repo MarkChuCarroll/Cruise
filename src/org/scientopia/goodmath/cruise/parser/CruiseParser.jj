@@ -1,0 +1,182 @@
+/************************************************************************
+ * Cruise - a programming language of bad actors
+ * Copyright 2012 Mark C. Chu-Carroll
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License"); 
+ * you may not use this file except in compliance with the License. 
+ * You may obtain a copy of the License at 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, 
+ * software distributed under the License is distributed on an 
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, 
+ * either express or implied. See the License for the specific 
+ * language governing permissions and limitations under the License.
+ * 
+ */
+
+options{
+  JDK_VERSION = "1.5";
+  lookahead=4;
+  FORCE_LA_CHECK=true; 
+}
+
+PARSER_BEGIN(CruiseParser)
+package org.scientopia.goodmath.cruise.parser;
+import org.scientopia.goodmath.cruise.interp.*;
+import org.scientopia.goodmath.cruise.ast.*;
+import java.util.*;
+
+public class CruiseParser {
+  public static void main(String args[])throws ParseException{
+    CruiseParser parser = new CruiseParser(System.in);
+    while (true){
+      System.out.println("Reading from standard input...");
+      try {
+		CruiseParser.program();
+      }
+      catch (Exception e){
+        System.out.println("NOK.");
+        System.out.println(e.getMessage());
+      }
+      catch (Error e){
+        System.out.println("Oops.");
+        System.out.println(e.getMessage());
+        break ;
+      }
+    }
+  }
+}
+PARSER_END(CruiseParser)
+
+SKIP:{
+  " "
+  | "\r"
+  | "\t"
+  | "\n"
+}
+
+TOKEN:/* Braces */
+{
+    <LBRACE: "{">
+  | <RBRACE: "}">
+  | <LPAREN: "(">
+  | <RPAREN: ")">
+  | <COMMA: ",">
+}
+
+TOKEN: { /*KEYWORDS*/
+   <ACTOR : "actor">
+|  <INSTANTIATE : "instantiate">
+|  <AS : "as">
+|  <INIT : "initial">
+|  <BEHAVIOR : "behavior">
+|  <ON: "on">
+|  <ADOPT: "adopt">
+|  <SEND: "send">
+|  <TO: "to">
+}
+
+TOKEN:{
+  <VARIABLEIDENT: "$" (["a"-"z","A"-"Z"])+>
+| <ACTORIDENT: ["a"-"z"](["a"-"z","A"-"Z"])*>
+| <TYPEIDENT: "!" ["A"-"Z"](["a"-"z","A"-"Z"])*>
+| <TUPLETAG: ["A"-"Z"](["a"-"z","A"-"Z"])*>
+| <BEHAVIORIDENT: ":" ["A"-"Z"](["a"-"z","A"-"Z"])*>
+| <NUMBER : (["0"-"9"])+>
+}
+
+MORE :
+{
+  "//" : IN_SINGLE_LINE_COMMENT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+MORE :
+{
+  < ~[] >
+}
+
+
+Engine program() : {Engine engine = new Engine(); ActorType at; CreateActorStatement createStmt; SendMessageStatement sendStmt; } {
+   ( at=actor_type() { engine.addActorType(at); } )+ 
+   ( createStmt=create_actor_stmt() { engine.getCreates().add(createStmt);  })+ 
+   ( sendStmt=msg_send_stmt()  {  engine.addMessage(sendStmt);  }  )+
+   { return engine; }
+}
+	
+ActorType actor_type() : { Token typeToken = null; 
+					  ActorType result;
+					  Token bname;
+					  Behavior beh; } { 
+   <ACTOR> typeToken=<TYPEIDENT>   			{ result = new ActorType(typeToken.image); }
+   <LBRACE> ( beh=behavior() { result.addBehavior(beh); })+ 
+   <INIT> bname=<BEHAVIORIDENT> {  Behavior init = result.getBehavior(bname.image);
+   							       if (init == null) {
+   							          throw new ParseException("Initial behavior " + bname.image + " not defined  for actor type " + typeToken.image );
+					               }
+					               result.setInitialBehavior(bname.image);
+                                }
+                                
+   <RBRACE>
+                                
+   { return result; }                                
+}
+	
+void var_ident_list(List<String> names) : {Token tok; } {
+   tok=<VARIABLEIDENT> { names.add(tok.image); }
+    ( <COMMA> tok=<VARIABLEIDENT> { names.add(tok.image); } )*
+}
+
+Behavior behavior () : {Behavior result; Token name; MessageHandler handler; } {
+  <BEHAVIOR> name=<BEHAVIORIDENT> { result = new Behavior(name.image); }
+  <LPAREN> ( var_ident_list(result.getParameters()) )? <RPAREN> 
+  <LBRACE> ( handler=msg_handler_clause() { result.getHandlers().add(handler); } )+ <RBRACE>
+  { return result; }
+}
+
+MessageHandler msg_handler_clause() : {MessageHandler result; CreateActorStatement createStmt; SendMessageStatement sendStmt; ValueExpression pattern; } {
+	<ON> pattern=value_spec()  { result = new MessageHandler(pattern); }
+	<LBRACE> (createStmt=create_actor_stmt() { result.getCreations().add(createStmt);  }  )*
+	(sendStmt=msg_send_stmt()   { result.getSends().add(sendStmt); } )*
+	( adopt_clause(result) )? <RBRACE>
+	{ return result; }
+}
+	
+ValueExpression value_spec() : {Token tok; TupleExpression tup; VariableExpression var; ActorIdentifier actId; } {
+      tok=<TUPLETAG> { tup = new TupleExpression(tok.image); } <LPAREN>  ( value_spec_list(tup.getElements()) )?   <RPAREN> { return tup; }
+	| tok=<VARIABLEIDENT> { return new VariableExpression(tok.image); }
+	| tok=<ACTORIDENT> { return new ActorIdentifier(tok.image); }
+	| tok=<NUMBER> { return ValueExpression.intToTuple(Integer.parseInt(tok.image)); }
+}
+	
+void value_spec_list(List<ValueExpression> values) : { ValueExpression v; } {
+     v=value_spec() { values.add(v); }
+   	 ( <COMMA> v=value_spec() {values.add(v); }  )*
+}
+	
+SendMessageStatement msg_send_stmt() : { Token ident; ValueExpression msg; ValueExpression target; } {
+	<SEND> msg=value_spec() <TO> 
+	( ident=<VARIABLEIDENT> { target=new VariableExpression(ident.image); } 
+	| ident=<ACTORIDENT>    { target=new ActorIdentifier(ident.image); } )
+	{ return new SendMessageStatement(target, msg); }
+}
+	
+CreateActorStatement create_actor_stmt() : { CreateActorStatement result; Token typeTok; Token nameTok; } {
+   <INSTANTIATE> typeTok=<TYPEIDENT>  { result = new CreateActorStatement(typeTok.image); }
+   <LPAREN> ( value_spec_list(result.getParameters()) )? <RPAREN>
+   	    ( <AS> nameTok=<ACTORIDENT>   { result.setTarget(new ActorIdentifier(nameTok.image)); }
+   	    | <TO> nameTok=<VARIABLEIDENT>        { result.setTarget(new VariableExpression(nameTok.image)); } ) 
+   	    { return result; }
+}
+
+void adopt_clause(MessageHandler handler) : {Token ident; } {
+	<ADOPT> ident=<BEHAVIORIDENT>   {  handler.setReplacementBehavior(ident.image); }
+	 <LPAREN> ( value_spec_list(handler.getReplacementParameters()) )? <RPAREN>
+}
+
