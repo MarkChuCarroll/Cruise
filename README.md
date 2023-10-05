@@ -1,11 +1,10 @@
 # Cruise: a language of bad actors
 
-This language is a joke. It's based on the actor model,
-which is very serious. But as an implementation of
-the actor model, this is a cute piece of trash. It's
-single-threaded, it's sloppy, it doesn't typecheck, it
-doesn't compile in any way. It doesn't even give reasonable
-errors for bad command line arguments. But it does run programs (badly).
+This language is a joke. It's based on the actor model, which is very serious.
+But as an implementation of the actor model, this is a cute piece of trash.
+It's single-threaded, it's sloppy, it doesn't typecheck, it doesn't compile in
+any way. It doesn't even give reasonable errors for bad command line arguments.
+But it does run programs (badly).
 
 To build it, just run:
 
