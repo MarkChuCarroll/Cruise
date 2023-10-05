@@ -25,14 +25,16 @@ actor !GreaterThan {
 
 actor !True {
 	behavior :True() {
-	   on Result() { send True() to out}
+	   on Result() { send True() to out
+      send Newline() to out }
     }
     initial :True
 }
 
 actor !False {
    behavior :False() {
-      on Result() { send False() to out}
+      on Result() { send False() to out
+      send Newline() to out }
     }
     initial :False
 }
