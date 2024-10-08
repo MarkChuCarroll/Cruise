@@ -15,17 +15,17 @@
 
 actor !Concatenator {
   behavior :Concat() {
-    on Concat(Nil(), $ltwo, $misc, $target) {
-      send ConcatResult($ltwo, $misc) to $target
+    on Concat(Nil(), $right, $intermediate, $target) {
+      send ConcatResult($right, $intermediate) to $target
     }
-    on Concat(Cons($f, Nil()), $ltwo, $misc, $target) {
-      send ConcatResult(Cons($f, $ltwo), $misc) to $target
+    on Concat(Cons($head, Nil()), $right, $intermediate, $target) {
+      send ConcatResult(Cons($head, $right), $intermediate) to $target
     }
-    on Concat(Cons($f, $t), $ltwo, $misc, $target) {
-      send Concat($t, $ltwo, Temp($f, $target, $misc), $self) to $self
+    on Concat(Cons($head, $t), $right, $intermediate, $target) {
+      send Concat($t, $right, Temp($head, $target, $intermediate), $self) to $self
     }
-    on ConcatResult($list, Temp($f, $target, $misc)) {
-      send ConcatResult(Cons($f, $list), $misc) to $target
+    on ConcatResult($list, Temp($head, $target, $intermediate)) {
+      send ConcatResult(Cons($head, $list), $intermediate) to $target
     }
   }
   initial :Concat
